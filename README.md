@@ -25,10 +25,16 @@ An [MCP](https://modelcontextprotocol.io/) server that lets LLM agents submit qu
 ## Installation
 
 ```bash
-pip install tii-quantum-mcp
+pip install .
 ```
 
 Or with [uv](https://github.com/astral-sh/uv):
+
+```bash
+uv sync
+```
+
+and
 
 ```bash
 uv add tii-quantum-mcp
