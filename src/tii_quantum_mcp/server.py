@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import sys
-from typing import Any
+from typing import Any, cast
 
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
+from fastmcp.server.elicitation import (
+    AcceptedElicitation,
+    CancelledElicitation,
+    DeclinedElicitation,
+)
+from mcp.shared.exceptions import McpError
 from tii_quantum import constants as _tii_quantum_constants
 from tii_quantum.job import JobStatus
 from tii_quantum.utils import ApiRequest
@@ -14,6 +20,7 @@ from .client import circuit_from_input, get_client, result_to_markdown
 
 mcp = FastMCP("tii-q-cloud")
 MAX_RESULT_SAMPLES = 1_000
+DEFAULT_NSHOTS = 1_024
 
 
 # ---------------------------------------------------------------------------
@@ -89,18 +96,90 @@ def _available_targets(
     return targets
 
 
+def _target_options(targets: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    """Build labelled elicitation options keyed by stable per-request IDs."""
+    return {
+        f"target-{index}": {
+            "title": (
+                f"{target['project']} / {target['device']} — {target['hardware_type']}, "
+                f"{target['max_num_qubits']} qubits, {target['shots_left']} shots remaining"
+            )
+        }
+        for index, target in enumerate(targets, start=1)
+    }
+
+
+async def _elicit_target(
+    ctx: Context | None, targets: list[dict[str, Any]]
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Ask the client to select an available project/partition pair."""
+    if ctx is None:
+        return None, "Interactive selection is unavailable in this MCP client."
+
+    options = _target_options(targets)
+    try:
+        response = await ctx.elicit(
+            "Select the Q-Cloud project and partition for this circuit.",
+            options,  # type: ignore[arg-type]
+        )
+    except (AttributeError, McpError, RuntimeError) as exc:
+        return None, f"Interactive selection is unavailable: {exc}"
+
+    if isinstance(response, (CancelledElicitation, DeclinedElicitation)):
+        return None, "Submission cancelled; no job was created."
+    if not isinstance(response, AcceptedElicitation):
+        return None, "Interactive selection failed; no job was created."
+
+    selected_key = cast(str, response.data)
+    if selected_key not in options:
+        return None, "Interactive selection failed; no job was created."
+
+    index = int(selected_key.removeprefix("target-")) - 1
+    return targets[index], None
+
+
+async def _elicit_nshots(ctx: Context | None) -> tuple[int | None, str | None]:
+    """Ask the client for a positive measurement-shot count."""
+    if ctx is None:
+        return None, "Interactive selection is unavailable in this MCP client."
+
+    try:
+        response = await ctx.elicit(
+            (
+                "Enter the number of measurement shots "
+                f"(a positive integer; {DEFAULT_NSHOTS} is typical)."
+            ),
+            int,  # type: ignore[arg-type]
+            response_title="Measurement shots",
+        )
+    except (AttributeError, McpError, RuntimeError) as exc:
+        return None, f"Interactive selection is unavailable: {exc}"
+
+    if isinstance(response, (CancelledElicitation, DeclinedElicitation)):
+        return None, "Submission cancelled; no job was created."
+    if not isinstance(response, AcceptedElicitation):
+        return None, "Invalid nshots: provide a positive integer."
+
+    nshots = cast(int, response.data)
+    if nshots < 1:
+        return None, "Invalid nshots: provide a positive integer."
+
+    return nshots, None
+
+
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
 
 
-@mcp.tool(annotations={"destructiveHint": True, "idempotentHint": False})
-def submit_circuit(
+@mcp.tool()
+async def submit_circuit(
     circuit_input: str,
     device: str | None = None,
-    nshots: int = 1024,
+    nshots: int | None = None,
     project: str | None = None,
     verbatim: bool = False,
+    ctx: Context | None = None,
 ) -> str:
     """Submit a quantum circuit to the TII Q-Cloud and return the job PID.
 
@@ -109,16 +188,15 @@ def submit_circuit(
             - **QASM 2.0** string (starts with ``OPENQASM 2.0;``)
             - **qibo JSON** string — the JSON-serialised ``circuit.raw`` dict
               (contains a ``"queue"`` key)
-        device:        Target device / partition name. If omitted, selects the
-                       compatible available target with the most shots remaining.
-        nshots:        Number of measurement shots (default 1024).
-        project:       Project name. If omitted, selects it with the target.
+        device:        Target device / partition name. If omitted, select interactively.
+        nshots:        Number of measurement shots. If omitted, select interactively.
+        project:       Project name. If omitted, select interactively.
         verbatim:      If ``True``, run the circuit without transpilation.
 
     Returns:
         A confirmation message containing the job PID, or an error message.
     """
-    if nshots < 1:
+    if nshots is not None and nshots < 1:
         return "Invalid nshots: provide a positive integer."
 
     client, err = _client_or_error()
@@ -130,25 +208,45 @@ def submit_circuit(
     except ValueError as exc:
         return f"Circuit parse error: {exc}"
 
-    if device is None or project is None:
+    selected_target = None
+    if device is None or project is None or nshots is None:
         try:
-            targets = _available_targets(
-                _fetch_project_quotas(client),
-                circuit.nqubits,
-                project=project,
-                device=device,
-            )
+            project_quotas = _fetch_project_quotas(client)
         except Exception as exc:
             return f"Error fetching available targets: {exc}"
 
+        targets = _available_targets(
+            project_quotas,
+            circuit.nqubits,
+            project=project,
+            device=device,
+        )
         if not targets:
             return (
                 "No available project/partition can run this circuit with the requested settings."
             )
 
-        target = max(targets, key=lambda item: (item["shots_left"], item["jobs_left"]))
-        device = target["device"]
-        project = target["project"]
+        if device is None or project is None:
+            selected_target, error = await _elicit_target(ctx, targets)
+            if error:
+                return error
+            assert selected_target is not None
+            project = selected_target["project"]
+            device = selected_target["device"]
+        else:
+            selected_target = targets[0]
+
+        if nshots is None:
+            nshots, error = await _elicit_nshots(ctx)
+            if error:
+                return error
+            assert nshots is not None
+
+        if selected_target is not None and nshots > selected_target["shots_left"]:
+            return (
+                f"Invalid nshots: {nshots} exceeds the {selected_target['shots_left']} shots "
+                "remaining for the selected target."
+            )
 
     try:
         job = client.run_circuit(
