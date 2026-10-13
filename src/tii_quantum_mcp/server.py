@@ -150,6 +150,45 @@ def submit_circuit(
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
+def visualize_circuit(circuit_input: str) -> str:
+    """Render a text-based diagram of a quantum circuit.
+
+    Parses the circuit (QASM 2.0 or qibo JSON) and returns qibo's text
+    diagram, so you can visually verify the circuit before submitting it.
+    No authentication or Q-Cloud access is required.
+
+    Args:
+        circuit_input: The quantum circuit in one of two formats:
+            - **QASM 2.0** string (starts with `` OPENQASM 2.0;``)
+            - **qibo JSON** string — the JSON-serialised ``circuit.raw`` dict
+              (contains a ``"queue"`` key)
+
+    Returns:
+        A Markdown-formatted circuit diagram with qubit and gate metadata.
+    """
+    try:
+        circuit = circuit_from_input(circuit_input)
+    except ValueError as exc:
+        return f"Circuit parse error: {exc}"
+
+    try:
+        diagram = circuit.diagram()
+    except Exception as exc:
+        return f"Error drawing circuit: {exc}"
+
+    n_gates = len(circuit.queue)
+    lines = [
+        "## Circuit diagram\n",
+        "```",
+        diagram,
+        "```",
+        "",
+        f"- **Qubits:** {circuit.nqubits}",
+        f"- **Gates:** {n_gates}",
+    ]
+    return "\n".join(lines)
+
+@mcp.tool(annotations={"readOnlyHint": True})
 def get_job_status(pid: str) -> str:
     """Refresh and return the current status of a Q-Cloud job.
 

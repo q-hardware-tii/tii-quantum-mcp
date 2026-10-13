@@ -9,6 +9,7 @@ An [MCP](https://modelcontextprotocol.io/) server that lets LLM agents submit qu
 | Tool | Description |
 |------|-------------|
 | `submit_circuit` | Submit a quantum circuit (QASM 2.0 or qibo JSON) to Q-Cloud; returns a job PID |
+| `visualize_circuit` | Render a text-based diagram of the circuit, including qubit and gate metadata, before submission |
 | `list_available_targets` | List quota-backed project/partition pairs available to run a circuit |
 | `get_job_status` | Refresh and return the current status, queue position, and ETA for a job |
 | `get_job_result` | Download and return measurement frequencies + samples for a completed job |
