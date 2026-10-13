@@ -8,7 +8,8 @@ An [MCP](https://modelcontextprotocol.io/) server that lets LLM agents submit qu
 
 | Tool | Description |
 |------|-------------|
-| `submit_circuit` | Submit a quantum circuit (QASM 2.0 or qibo JSON) to Q-Cloud; returns a job PID |
+| `submit_circuit` | Submit a quantum circuit (QASM 2.0 or qibo JSON) to Q-Cloud; omitted target details are requested interactively |
+| `list_available_targets` | List quota-backed project/partition pairs available to run a circuit |
 | `get_job_status` | Refresh and return the current status, queue position, and ETA for a job |
 | `get_job_result` | Download and return measurement frequencies + samples for a completed job |
 | `list_jobs` | List all jobs associated with your account |
@@ -81,16 +82,19 @@ tii-quantum-mcp check-auth
 ## Typical workflow
 
 ```
-1. submit_circuit(circuit_input="OPENQASM 2.0; ...", device="...", nshots=1000)
+1. submit_circuit(circuit_input="OPENQASM 2.0; ...")
+   → prompts for a project/partition and measurement-shot count
+
+2. submit_circuit(circuit_input="OPENQASM 2.0; ...", device="...", project="...", nshots=1000)
    → returns a confirmation containing PID "abc123"
 
-2. get_job_status(pid="abc123")
+3. get_job_status(pid="abc123")
    → returns status=QUEUEING, queue_position=3, eta_seconds=120
 
-3. get_job_status(pid="abc123")
+4. get_job_status(pid="abc123")
    → returns status=SUCCESS
 
-4. get_job_result(pid="abc123")
+5. get_job_result(pid="abc123")
    → returns measurement frequencies {"00": 512, "11": 488}
 ```
 

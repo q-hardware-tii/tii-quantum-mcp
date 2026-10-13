@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections import Counter
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import qibo
+from fastmcp.server.elicitation import AcceptedElicitation, CancelledElicitation
 from qibo import gates
 
 from tii_quantum_mcp.client import MAX_FREQUENCY_OUTCOMES, circuit_from_input, result_to_markdown
@@ -15,6 +16,7 @@ from tii_quantum_mcp.server import (
     get_job_result,
     get_job_status,
     get_quota,
+    list_available_targets,
     list_jobs,
     submit_circuit,
 )
@@ -73,6 +75,20 @@ BELL_JSON_RAW: dict = {
     "wire_names": [0, 1],
     "qibo_version": "0.3.2",
 }
+
+AVAILABLE_TARGETS = [
+    {
+        "project": "personal",
+        "partition": {
+            "name": "sim",
+            "status": "available",
+            "max_num_qubits": 8,
+            "hardware_type": "simulator",
+        },
+        "shots_left": 9500,
+        "jobs_left": 100,
+    }
+]
 
 
 def _make_mock_job(pid="test-pid-123", status_name="SUCCESS", device="sim", project="personal"):
@@ -177,36 +193,168 @@ class TestResultToMarkdown:
 
 @patch("tii_quantum_mcp.server.get_client")
 class TestSubmitCircuit:
-    def test_success_qasm(self, mock_get_client):
+    @pytest.mark.asyncio
+    async def test_success_qasm(self, mock_get_client):
         job = _make_mock_job()
         mock_get_client.return_value = _make_mock_client(job)
-        result = submit_circuit(BELL_QASM, device="sim", nshots=1000)
+        result = await submit_circuit(
+            BELL_QASM,
+            device="sim",
+            project="personal",
+            nshots=1000,
+        )
         assert "test-pid-123" in result
         assert "✓" in result
 
-    def test_success_json(self, mock_get_client):
+    @pytest.mark.asyncio
+    async def test_success_json(self, mock_get_client):
         import json
 
         job = _make_mock_job()
         mock_get_client.return_value = _make_mock_client(job)
-        result = submit_circuit(json.dumps(BELL_JSON_RAW), device="sim")
+        result = await submit_circuit(
+            json.dumps(BELL_JSON_RAW),
+            device="sim",
+            project="personal",
+            nshots=1000,
+        )
         assert "test-pid-123" in result
 
-    def test_invalid_circuit(self, mock_get_client):
+    @pytest.mark.asyncio
+    async def test_invalid_circuit(self, mock_get_client):
         mock_get_client.return_value = _make_mock_client()
-        result = submit_circuit("garbage input", device="sim")
+        result = await submit_circuit(
+            "garbage input",
+            device="sim",
+            project="personal",
+            nshots=1000,
+        )
         assert "parse error" in result.lower()
 
-    def test_rejects_non_positive_nshots(self, mock_get_client):
-        result = submit_circuit(BELL_QASM, device="sim", nshots=0)
+    @pytest.mark.asyncio
+    async def test_rejects_non_positive_nshots(self, mock_get_client):
+        result = await submit_circuit(BELL_QASM, device="sim", nshots=0)
 
         assert "Invalid nshots" in result
         mock_get_client.assert_not_called()
 
-    def test_auth_error(self, mock_get_client):
+    @pytest.mark.asyncio
+    async def test_auth_error(self, mock_get_client):
         mock_get_client.side_effect = RuntimeError("TII_QUANTUM_TOKEN not set")
-        result = submit_circuit(BELL_QASM, device="sim")
+        result = await submit_circuit(
+            BELL_QASM,
+            device="sim",
+            project="personal",
+            nshots=1000,
+        )
         assert "Authentication error" in result
+
+    @pytest.mark.asyncio
+    async def test_prompts_for_missing_target_and_shots(self, mock_get_client):
+        job = _make_mock_job()
+        client = _make_mock_client(job)
+        ctx = MagicMock()
+        ctx.elicit = AsyncMock(
+            side_effect=[
+                AcceptedElicitation(data="target-1"),
+                AcceptedElicitation(data=500),
+            ]
+        )
+        mock_get_client.return_value = client
+
+        with patch("tii_quantum_mcp.server.ApiRequest") as mock_request:
+            mock_request.get.return_value.json.return_value = AVAILABLE_TARGETS
+            result = await submit_circuit(BELL_QASM, ctx=ctx)
+
+        assert "test-pid-123" in result
+        client.run_circuit.assert_called_once()
+        assert client.run_circuit.call_args.kwargs["project"] == "personal"
+        assert client.run_circuit.call_args.kwargs["device"] == "sim"
+        assert client.run_circuit.call_args.kwargs["nshots"] == 500
+
+    @pytest.mark.asyncio
+    async def test_cancellation_does_not_submit(self, mock_get_client):
+        client = _make_mock_client()
+        ctx = MagicMock()
+        ctx.elicit = AsyncMock(return_value=CancelledElicitation())
+        mock_get_client.return_value = client
+
+        with patch("tii_quantum_mcp.server.ApiRequest") as mock_request:
+            mock_request.get.return_value.json.return_value = AVAILABLE_TARGETS
+            result = await submit_circuit(BELL_QASM, ctx=ctx)
+
+        assert result == "Submission cancelled; no job was created."
+        client.run_circuit.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_missing_values_without_context_do_not_submit(self, mock_get_client):
+        client = _make_mock_client()
+        mock_get_client.return_value = client
+
+        with patch("tii_quantum_mcp.server.ApiRequest") as mock_request:
+            mock_request.get.return_value.json.return_value = AVAILABLE_TARGETS
+            result = await submit_circuit(BELL_QASM)
+
+        assert "Interactive selection is unavailable" in result
+        client.run_circuit.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejects_shots_exceeding_selected_target_quota(self, mock_get_client):
+        client = _make_mock_client()
+        ctx = MagicMock()
+        ctx.elicit = AsyncMock(return_value=AcceptedElicitation(data=10_000))
+        mock_get_client.return_value = client
+
+        with patch("tii_quantum_mcp.server.ApiRequest") as mock_request:
+            mock_request.get.return_value.json.return_value = AVAILABLE_TARGETS
+            result = await submit_circuit(
+                BELL_QASM,
+                device="sim",
+                project="personal",
+                ctx=ctx,
+            )
+
+        assert "exceeds the 9500 shots remaining" in result
+        client.run_circuit.assert_not_called()
+
+
+@patch("tii_quantum_mcp.server.get_client")
+class TestListAvailableTargets:
+    def test_lists_only_compatible_available_targets(self, mock_get_client):
+        client = _make_mock_client()
+        mock_get_client.return_value = client
+        project_quotas = AVAILABLE_TARGETS + [
+            {
+                "project": "personal",
+                "partition": {
+                    "name": "busy-device",
+                    "status": "busy",
+                    "max_num_qubits": 8,
+                    "hardware_type": "hardware",
+                },
+                "shots_left": 9500,
+                "jobs_left": 100,
+            },
+            {
+                "project": "personal",
+                "partition": {
+                    "name": "small-device",
+                    "status": "available",
+                    "max_num_qubits": 1,
+                    "hardware_type": "hardware",
+                },
+                "shots_left": 9500,
+                "jobs_left": 100,
+            },
+        ]
+
+        with patch("tii_quantum_mcp.server.ApiRequest") as mock_request:
+            mock_request.get.return_value.json.return_value = project_quotas
+            result = list_available_targets(BELL_QASM)
+
+        assert "sim" in result
+        assert "busy-device" not in result
+        assert "small-device" not in result
 
 
 @patch("tii_quantum_mcp.server.get_client")
