@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "fastmcp>=2.8.1",
-    "tii-quantum>=0.1.1",
+    "tii-quantum>=0.1.2",
 ]
 
 [[project.authors]]
@@ -47,3 +47,7 @@ src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[[tool.mypy.overrides]]
+module = ["qibo", "tii_quantum", "tii_quantum.*"]
+ignore_missing_imports = true

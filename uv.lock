@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -401,15 +401,15 @@ wheels = [
 
 [[package]]
 name = "cma"
-version = "3.4.0"
+version = "4.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/06/5f/658c47e31255b3f41eb7db690a4e0675752fa1ee788ea76a9f37b7120541/cma-3.4.0.tar.gz", hash = "sha256:a1ebd969b99871be3715d5a24b7bf54cf04ea94e80d6b8536d7147620dd10f6c", size = 263869, upload-time = "2024-07-05T15:01:25.429Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/86/d7/c92532c0a2922aacb3b7e0cf0fde5d2ba3f67c30692c8f9c4c35b9b42b68/cma-4.5.0.tar.gz", hash = "sha256:5e6774388d4a3798116bf9aff7684cf44d59f966d868f375e61811f74e132934", size = 335637, upload-time = "2026-09-13T21:49:14.757Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/50/132ffca648bcbff4b4a1420cc5d68104b1db5bd0f0f113345ee7589c83c7/cma-3.4.0-py3-none-any.whl", hash = "sha256:4140e490cc4e68cf8c7b1114e079c0561c9b78b1bf9ec69362c20865636ae5ca", size = 269676, upload-time = "2024-07-05T15:01:23.067Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/c2/859dcb6fc39476c78fde66005883edaab09f3fc561fa52a3b9d4cc036937/cma-4.5.0-py3-none-any.whl", hash = "sha256:9b37fa8bd541f1f4cf8e2cc4f98e6f02ec89d6d39ded8ec8a90d4f44c88c62c8", size = 347222, upload-time = "2026-09-13T21:49:13.51Z" },
 ]
 
 [[package]]
@@ -1836,7 +1836,7 @@ wheels = [
 
 [[package]]
 name = "qibo"
-version = "0.3.2"
+version = "0.3.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cma" },
@@ -1852,26 +1852,9 @@ dependencies = [
     { name = "sympy" },
     { name = "tabulate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/64/77ddaff054df93ea82ab5e6cad2647dbdbdcfce453c04dec52e69eb417c3/qibo-0.3.2.tar.gz", hash = "sha256:8f21d98ebee9d8575b5ee6bcd6d9cebbb37ebb34960eebd79037b622f34ff798", size = 310229, upload-time = "2026-04-07T08:35:01.77Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/12/0c/b0a9fe725fe4fbe2620ae0404d58db39440ec74e89056ee65199f7527a34/qibo-0.3.5.tar.gz", hash = "sha256:79b20727fb5829186cdd74c257a10c6b4fd17646a837791882414544cbd54313", size = 328846, upload-time = "2026-09-16T13:09:52.27Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/48/e5/3f333f502b8bd47398a7f68c143ad8bb1dbe4a64a574de892a8a14bd2da4/qibo-0.3.2-py3-none-any.whl", hash = "sha256:c6883daa7fe664f916e069fe345156631daf5e598e55044e6891b8200aaf6400", size = 354556, upload-time = "2026-04-07T08:35:00.317Z" },
-]
-
-[[package]]
-name = "qibo-client"
-version = "0.2.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-    { name = "python-dateutil" },
-    { name = "qibo" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "tabulate" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/19/f8/673645c1be1c1dd2dd8eb28831dd879207e2e4a54fce2d72d0f2c551d09a/qibo_client-0.2.4.tar.gz", hash = "sha256:649b48853291536162c0d8bcd5b64c25700ed4bae101fa0fb270c158c7640eba", size = 23945, upload-time = "2026-04-22T06:26:20.695Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7c/75/e08d31885ce027938d2219fbafe8b5525ce74b891e061c08b5d4e05b913a/qibo_client-0.2.4-py3-none-any.whl", hash = "sha256:90c267a6b4b1a531bf7235a4aec9e72935b862b7a0bf9af19a7caae191c62a97", size = 28520, upload-time = "2026-04-22T06:26:19.11Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/43/be8c8d29a9b1f24adfd772031b118e054d1526bbfa1bfb393f632a342c9b/qibo-0.3.5-py3-none-any.whl", hash = "sha256:f77b95411f11e9376756466589960cd60a12ebc0e8893a497865a4d3d88c85b2", size = 369537, upload-time = "2026-09-16T13:09:51.153Z" },
 ]
 
 [[package]]
@@ -2084,7 +2067,7 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0f/37/6964b830433e654ec7485e45a00fc9a27cf868d622838f6b6d9c5ec0d532/scipy-1.15.3.tar.gz", hash = "sha256:eae3cf522bc7df64b42cad3925c876e1b0b6c35c1337c93e12c0f366f55b0eaf", size = 59419214, upload-time = "2025-05-08T16:13:05.955Z" }
 wheels = [
@@ -2144,7 +2127,7 @@ resolution-markers = [
     "python_full_version >= '3.11' and python_full_version < '3.15'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz", hash = "sha256:95d8e012d8cb8816c226aef832200b1d45109ed4464303e997c5b13122b297c0", size = 30573822, upload-time = "2026-02-23T00:26:24.851Z" }
 wheels = [
@@ -2341,14 +2324,19 @@ wheels = [
 
 [[package]]
 name = "tii-quantum"
-version = "0.1.1"
+version = "0.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "qibo-client" },
+    { name = "packaging" },
+    { name = "python-dateutil" },
+    { name = "qibo" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "tabulate" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ec/36/7aff4df8ffff03e488fc6f3fe59ed78015b8f1005b2ffe3f11dab58b73a5/tii_quantum-0.1.1.tar.gz", hash = "sha256:2441c310150b7c65d74fbaa3b3ac157627ddd023d47f81c8ff46f090ee618a6d", size = 6024, upload-time = "2026-02-17T21:41:24.536Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/37/7b/86874db4778bd11bcf9b047482fda2e8e2854bc950966f0f20063fce137c/tii_quantum-0.1.2.tar.gz", hash = "sha256:7f796cea601de4a89eb8e68417f7d2711e12b700da66ecd7f36c2dea74f1ec30", size = 23248, upload-time = "2026-09-03T12:00:46.579Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/50/b1/32d0e02d95f44e11aa6a50c9915546406c7508df5cc6b7d4fd35ac92be8b/tii_quantum-0.1.1-py3-none-any.whl", hash = "sha256:a99b5006c01257a6cd5dcc0d17e770687d79bb7e05866a3e7359d0f7695b7f70", size = 6725, upload-time = "2026-02-17T21:41:23.725Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/60/fbcc9530df0eea2a1717bb4bd70bcf60aaa7d702ca14491dd1da32512802/tii_quantum-0.1.2-py3-none-any.whl", hash = "sha256:7adc6ee1356b41dacef1f7b1f613ae098af1f6dfe7a4184404a0c1b735082376", size = 27851, upload-time = "2026-09-03T12:00:45.591Z" },
 ]
 
 [[package]]
@@ -2371,7 +2359,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=2.8.1" },
-    { name = "tii-quantum", specifier = ">=0.1.1" },
+    { name = "tii-quantum", specifier = ">=0.1.2" },
 ]
 
 [package.metadata.requires-dev]

@@ -5,8 +5,9 @@ from __future__ import annotations
 import sys
 
 from fastmcp import FastMCP
-from qibo_client import constants as _qibo_constants
-from qibo_client.utils import QiboApiRequest
+from tii_quantum import constants as _tii_quantum_constants
+from tii_quantum.job import JobStatus
+from tii_quantum.utils import ApiRequest
 
 from .client import circuit_from_input, get_client, result_to_markdown
 
@@ -33,7 +34,7 @@ def _client_or_error():
 def submit_circuit(
     circuit_input: str,
     device: str,
-    nshots: int | None = None,
+    nshots: int = 1024,
     project: str = "personal",
     verbatim: bool = False,
 ) -> str:
@@ -45,7 +46,7 @@ def submit_circuit(
             - **qibo JSON** string — the JSON-serialised ``circuit.raw`` dict
               (contains a ``"queue"`` key)
         device:        Target device / partition name (e.g. ``"sim"``).
-        nshots:        Number of measurement shots. Use ``None`` for the server default.
+        nshots:        Number of measurement shots (default 1024).
         project:       Project name to associate with the job (default ``"personal"``).
         verbatim:      If ``True``, run the circuit without transpilation.
 
@@ -151,15 +152,13 @@ def get_job_result(pid: str, max_samples: int = 20) -> str:
     except Exception as exc:
         return f"Error fetching job `{pid}`: {exc}"
 
-    from qibo_client.qibo_job import QiboJobStatus
-
     if job._status is None:
         return f"Job `{pid}` status is unknown. Try `get_job_status` first."
 
-    if job._status == QiboJobStatus.ERROR:
+    if job._status == JobStatus.ERROR:
         return f"Job `{pid}` finished with an ERROR. Results are not available."
 
-    if job._status != QiboJobStatus.SUCCESS:
+    if job._status != JobStatus.SUCCESS:
         return (
             f"Job `{pid}` is not yet complete (status: **{job._status.name}**). "
             f"Use `get_job_status(pid='{pid}')` to monitor progress."
@@ -188,10 +187,10 @@ def list_jobs() -> str:
         return f"Authentication error: {err}"
 
     try:
-        jobs = QiboApiRequest.get(
+        jobs = ApiRequest.get(
             client.base_url + "/api/jobs/",
             headers=client.headers,
-            timeout=_qibo_constants.TIMEOUT,
+            timeout=_tii_quantum_constants.TIMEOUT,
         ).json()
     except Exception as exc:
         return f"Error fetching jobs: {exc}"
@@ -229,16 +228,16 @@ def get_quota() -> str:
         return f"Authentication error: {err}"
 
     try:
-        disk = QiboApiRequest.get(
+        disk = ApiRequest.get(
             client.base_url + "/api/disk_quota/",
             headers=client.headers,
-            timeout=_qibo_constants.TIMEOUT,
+            timeout=_tii_quantum_constants.TIMEOUT,
         ).json()
 
-        project_quotas = QiboApiRequest.get(
+        project_quotas = ApiRequest.get(
             client.base_url + "/api/projectquotas/",
             headers=client.headers,
-            timeout=_qibo_constants.TIMEOUT,
+            timeout=_tii_quantum_constants.TIMEOUT,
         ).json()
     except Exception as exc:
         return f"Error fetching quota information: {exc}"

@@ -56,7 +56,7 @@ BELL_JSON_RAW: dict = {
 
 def _make_mock_job(pid="test-pid-123", status_name="SUCCESS", device="sim", project="personal"):
     """Create a mock QiboJob."""
-    from qibo_client.qibo_job import convert_str_to_job_status
+    from tii_quantum.job import convert_str_to_job_status
 
     job = MagicMock()
     job.pid = pid
@@ -228,7 +228,7 @@ class TestGetJobResult:
 class TestListJobs:
     def test_empty(self, mock_get_client):
         client = _make_mock_client()
-        with patch("tii_quantum_mcp.server.QiboApiRequest") as mock_req:
+        with patch("tii_quantum_mcp.server.ApiRequest") as mock_req:
             mock_req.get.return_value.json.return_value = []
             mock_get_client.return_value = client
             result = list_jobs()
@@ -244,7 +244,7 @@ class TestListJobs:
                 "updated_at": "2026-05-09T11:00:00Z",
             }
         ]
-        with patch("tii_quantum_mcp.server.QiboApiRequest") as mock_req:
+        with patch("tii_quantum_mcp.server.ApiRequest") as mock_req:
             mock_req.get.return_value.json.return_value = fake_jobs
             mock_get_client.return_value = client
             result = list_jobs()
@@ -272,7 +272,7 @@ class TestGetQuota:
                 "seconds_left": 3600,
             }
         ]
-        with patch("tii_quantum_mcp.server.QiboApiRequest") as mock_req:
+        with patch("tii_quantum_mcp.server.ApiRequest") as mock_req:
             mock_req.get.return_value.json.side_effect = [disk, pqs]
             mock_get_client.return_value = client
             result = get_quota()
