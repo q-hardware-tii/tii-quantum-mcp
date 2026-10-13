@@ -28,16 +28,16 @@ An [MCP](https://modelcontextprotocol.io/) server that lets LLM agents submit qu
 pip install .
 ```
 
-Or with [uv](https://github.com/astral-sh/uv):
+For development with [uv](https://github.com/astral-sh/uv):
 
 ```bash
 uv sync
 ```
 
-and
+To run the published package without cloning the repository, use:
 
 ```bash
-uv add tii-quantum-mcp
+uvx tii-quantum-mcp serve
 ```
 
 ## Configuration
@@ -81,8 +81,8 @@ tii-quantum-mcp check-auth
 ## Typical workflow
 
 ```
-1. submit_circuit(qasm_code="OPENQASM 2.0; ...", device="...", nshots=1000)
-   → returns pid="abc123"
+1. submit_circuit(circuit_input="OPENQASM 2.0; ...", device="...", nshots=1000)
+   → returns a confirmation containing PID "abc123"
 
 2. get_job_status(pid="abc123")
    → returns status=QUEUEING, queue_position=3, eta_seconds=120

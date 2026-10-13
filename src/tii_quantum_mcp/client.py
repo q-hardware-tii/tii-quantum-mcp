@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 
 _TOKEN_ENV = "TII_QUANTUM_TOKEN"
+MAX_FREQUENCY_OUTCOMES = 100
 
 
 def get_client() -> Client:
@@ -102,8 +103,12 @@ def result_to_markdown(result: qibo.result.QuantumState, pid: str, max_samples: 
         lines.append("### Measurement frequencies\n")
         lines.append("| Bitstring | Count | Probability |")
         lines.append("|-----------|-------|-------------|")
-        for bitstring, count in sorted(freqs.items(), key=lambda kv: -kv[1]):
+        ordered_frequencies = sorted(freqs.items(), key=lambda kv: -kv[1])
+        for bitstring, count in ordered_frequencies[:MAX_FREQUENCY_OUTCOMES]:
             lines.append(f"| `{bitstring}` | {count} | {count / total:.4f} |")
+        if len(ordered_frequencies) > MAX_FREQUENCY_OUTCOMES:
+            omitted = len(ordered_frequencies) - MAX_FREQUENCY_OUTCOMES
+            lines.append(f"\n*{omitted} lower-frequency outcomes omitted.*")
         lines.append("")
     except Exception as exc:
         lines.append(f"*Could not extract frequencies: {exc}*\n")

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from unittest.mock import MagicMock, patch
 
 import pytest
 import qibo
 from qibo import gates
 
-from tii_quantum_mcp.client import circuit_from_input, result_to_markdown
+from tii_quantum_mcp.client import MAX_FREQUENCY_OUTCOMES, circuit_from_input, result_to_markdown
 from tii_quantum_mcp.server import (
     delete_job,
     get_job_result,
@@ -35,15 +36,35 @@ measure q[1] -> c[1];
 
 BELL_JSON_RAW: dict = {
     "queue": [
-        {"name": "h", "init_args": [0], "init_kwargs": {}, "_target_qubits": [0],
-         "_control_qubits": [], "_class": "H"},
-        {"name": "cx", "init_args": [0, 1], "init_kwargs": {}, "_target_qubits": [1],
-         "_control_qubits": [0], "_class": "CNOT"},
         {
-            "name": "measure", "init_args": [0, 1],
-            "init_kwargs": {"register_name": None, "collapse": False,
-                            "basis": ["Z", "Z"], "p0": None, "p1": None},
-            "_target_qubits": [0, 1], "_control_qubits": [], "_class": "M",
+            "name": "h",
+            "init_args": [0],
+            "init_kwargs": {},
+            "_target_qubits": [0],
+            "_control_qubits": [],
+            "_class": "H",
+        },
+        {
+            "name": "cx",
+            "init_args": [0, 1],
+            "init_kwargs": {},
+            "_target_qubits": [1],
+            "_control_qubits": [0],
+            "_class": "CNOT",
+        },
+        {
+            "name": "measure",
+            "init_args": [0, 1],
+            "init_kwargs": {
+                "register_name": None,
+                "collapse": False,
+                "basis": ["Z", "Z"],
+                "p0": None,
+                "p1": None,
+            },
+            "_target_qubits": [0, 1],
+            "_control_qubits": [],
+            "_class": "M",
             "measurement_result": {"samples": None},
         },
     ],
@@ -85,6 +106,7 @@ def _make_mock_client(job=None):
 # client.py unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestCircuitFromInput:
     def test_qasm_bell(self):
         circuit = circuit_from_input(BELL_QASM)
@@ -96,6 +118,7 @@ class TestCircuitFromInput:
 
     def test_json_bell(self):
         import json
+
         circuit = circuit_from_input(json.dumps(BELL_JSON_RAW))
         assert circuit.nqubits == 2
 
@@ -105,6 +128,7 @@ class TestCircuitFromInput:
 
     def test_json_missing_queue_raises(self):
         import json
+
         with pytest.raises(ValueError, match="'queue' key"):
             circuit_from_input(json.dumps({"nqubits": 2}))
 
@@ -131,16 +155,25 @@ class TestResultToMarkdown:
         result = self._make_result()
         md = result_to_markdown(result, pid="abc123", max_samples=5)
         # Bitstrings in the sample block should be ≤ 5
-        sample_lines = [
-            line for line in md.split("\n")
-            if line and all(c in "01" for c in line)
-        ]
+        sample_lines = [line for line in md.split("\n") if line and all(c in "01" for c in line)]
         assert len(sample_lines) <= 5
+
+    def test_frequency_outcomes_are_capped(self):
+        result = MagicMock()
+        result.frequencies.return_value = Counter(
+            {format(value, "08b"): 1 for value in range(MAX_FREQUENCY_OUTCOMES + 1)}
+        )
+        result.samples.return_value = []
+
+        md = result_to_markdown(result, pid="abc123")
+
+        assert "1 lower-frequency outcomes omitted" in md
 
 
 # ---------------------------------------------------------------------------
 # server.py tool tests (with mocked client)
 # ---------------------------------------------------------------------------
+
 
 @patch("tii_quantum_mcp.server.get_client")
 class TestSubmitCircuit:
@@ -153,6 +186,7 @@ class TestSubmitCircuit:
 
     def test_success_json(self, mock_get_client):
         import json
+
         job = _make_mock_job()
         mock_get_client.return_value = _make_mock_client(job)
         result = submit_circuit(json.dumps(BELL_JSON_RAW), device="sim")
@@ -162,6 +196,12 @@ class TestSubmitCircuit:
         mock_get_client.return_value = _make_mock_client()
         result = submit_circuit("garbage input", device="sim")
         assert "parse error" in result.lower()
+
+    def test_rejects_non_positive_nshots(self, mock_get_client):
+        result = submit_circuit(BELL_QASM, device="sim", nshots=0)
+
+        assert "Invalid nshots" in result
+        mock_get_client.assert_not_called()
 
     def test_auth_error(self, mock_get_client):
         mock_get_client.side_effect = RuntimeError("TII_QUANTUM_TOKEN not set")
@@ -223,6 +263,13 @@ class TestGetJobResult:
         assert "frequencies" in result.lower()
         assert "test-pid-123" in result
 
+    @pytest.mark.parametrize("max_samples", [-1, 1001])
+    def test_rejects_out_of_range_max_samples(self, mock_get_client, max_samples):
+        result = get_job_result("test-pid-123", max_samples=max_samples)
+
+        assert "Invalid max_samples" in result
+        mock_get_client.assert_not_called()
+
 
 @patch("tii_quantum_mcp.server.get_client")
 class TestListJobs:
@@ -278,6 +325,7 @@ class TestGetQuota:
             result = get_quota()
         assert "Disk" in result
         assert "2000.00 KB" in result
+        assert "user@example.com" not in result
 
 
 @patch("tii_quantum_mcp.server.get_client")

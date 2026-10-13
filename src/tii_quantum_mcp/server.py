@@ -12,11 +12,13 @@ from tii_quantum.utils import ApiRequest
 from .client import circuit_from_input, get_client, result_to_markdown
 
 mcp = FastMCP("tii-q-cloud")
+MAX_RESULT_SAMPLES = 1_000
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _client_or_error():
     """Return (client, None) or (None, error_str)."""
@@ -29,6 +31,7 @@ def _client_or_error():
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def submit_circuit(
@@ -53,6 +56,9 @@ def submit_circuit(
     Returns:
         A confirmation message containing the job PID, or an error message.
     """
+    if nshots < 1:
+        return "Invalid nshots: provide a positive integer."
+
     client, err = _client_or_error()
     if err:
         return f"Authentication error: {err}"
@@ -63,8 +69,9 @@ def submit_circuit(
         return f"Circuit parse error: {exc}"
 
     try:
-        job = client.run_circuit(circuit, device=device, project=project,
-                                 nshots=nshots, verbatim=verbatim)
+        job = client.run_circuit(
+            circuit, device=device, project=project, nshots=nshots, verbatim=verbatim
+        )
     except Exception as exc:
         return f"Submission error: {exc}"
 
@@ -118,9 +125,7 @@ def get_job_status(pid: str) -> str:
         lines.append(f"- **Queue last updated:** {job.queue_last_update}")
 
     if status == "SUCCESS":
-        lines.append(
-            f"\nJob complete. Call `get_job_result(pid='{pid}')` to download results."
-        )
+        lines.append(f"\nJob complete. Call `get_job_result(pid='{pid}')` to download results.")
     elif status == "ERROR":
         lines.append("\nJob finished with an error. Check the Q-Cloud dashboard for details.")
 
@@ -137,12 +142,15 @@ def get_job_result(pid: str, max_samples: int = 20) -> str:
     Args:
         pid:         Process ID of the job (returned by ``submit_circuit``).
         max_samples: Maximum number of raw bitstring samples to include in the
-                     output (default 20).
+                     output, from 0 to 1000 (default 20).
 
     Returns:
         Markdown-formatted measurement frequencies and sample bitstrings,
         or a message indicating the job is not yet ready.
     """
+    if not 0 <= max_samples <= MAX_RESULT_SAMPLES:
+        return f"Invalid max_samples: provide an integer from 0 to {MAX_RESULT_SAMPLES}."
+
     client, err = _client_or_error()
     if err:
         return f"Authentication error: {err}"
@@ -249,9 +257,6 @@ def get_quota() -> str:
         entry = disk[0] if isinstance(disk, list) else disk
         kbs_left = entry.get("kbs_left")
         kbs_max = entry.get("kbs_max")
-        user_email = (entry.get("user") or {}).get("email", "")
-        if user_email:
-            lines.append(f"**User:** {user_email}\n")
         if kbs_left is not None and kbs_max is not None:
             kbs_used = kbs_max - kbs_left
             lines.append(
@@ -263,12 +268,8 @@ def get_quota() -> str:
     # Project quotas — `project` is a plain string, `partition` is a dict
     if project_quotas:
         lines.append("### Project quotas\n")
-        lines.append(
-            "| Project | Device | Shots left | Jobs left | Time left (s) | Status |"
-        )
-        lines.append(
-            "|---------|--------|------------|-----------|---------------|--------|"
-        )
+        lines.append("| Project | Device | Shots left | Jobs left | Time left (s) | Status |")
+        lines.append("|---------|--------|------------|-----------|---------------|--------|")
         for pq in project_quotas:
             proj = pq.get("project", "—")
             part = pq.get("partition") or {}
@@ -309,6 +310,7 @@ def delete_job(pid: str) -> str:
 # ---------------------------------------------------------------------------
 # Server entry point
 # ---------------------------------------------------------------------------
+
 
 def run_server() -> None:
     """Start the MCP stdio server."""
