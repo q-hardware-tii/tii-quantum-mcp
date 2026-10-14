@@ -1,8 +1,32 @@
 # tii-quantum-mcp
 
-An [MCP](https://modelcontextprotocol.io/) server that lets LLM agents submit quantum circuits to the
-[TII Q-Cloud](https://q-cloud.tii.ae) system and manage jobs via the
-[`tii-quantum`](https://pypi.org/project/tii-quantum/) Python client.
+> An [MCP](https://modelcontextprotocol.io/) server that lets LLM agents submit quantum circuits to the
+> [TII Q-Cloud](https://q-cloud.tii.ae) system and manage jobs via the
+> [`tii-quantum`](https://pypi.org/project/tii-quantum/) Python client.
+
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+
+## Features
+
+- 🚀 **Submit circuits** in QASM 2.0 or qibo JSON, auto-detected
+- 📊 **Visualize circuits** as text-based diagrams before submission
+- 🎯 **Discover targets** — quota-backed project/partition pairs that can run your circuit
+- 📡 **Track jobs** — status, queue position, and estimated start time
+- 📈 **Retrieve results** — measurement frequencies and sample bitstrings
+- 🗑️ **Manage jobs** — list and delete jobs on your account
+
+## Table of Contents
+
+- [Example prompt](#example-prompt)
+- [Tools](#tools)
+- [Circuit formats](#circuit-formats)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Typical workflow](#typical-workflow)
+- [How it works](#how-it-works)
+- [License](#license)
 
 ## Example prompt
 
@@ -117,6 +141,14 @@ tii-quantum-mcp check-auth
    → returns measurement frequencies {"00": 512, "11": 488}
 ```
 
+## How it works
+
+The server runs over the MCP **stdio** transport and uses the [`tii-quantum`](https://pypi.org/project/tii-quantum/) client to talk to the Q-Cloud API.
+
+- **Authentication** — every request is authorized with the `TII_QUANTUM_TOKEN` environment variable. If it is missing, tools return a clear authentication error instead of crashing.
+- **Circuit input** — circuits are accepted as either a QASM 2.0 string or a qibo JSON payload, so you can hand the server whatever your workflow already produces.
+- **Non-blocking results** — `get_job_result` never blocks; if a job is not yet in `SUCCESS` status it reports the current status so the agent can keep polling.
+
 ## License
 
-Apache 2.0
+[Apache 2.0](LICENSE)
