@@ -99,6 +99,23 @@ tii-quantum-mcp check-auth
    → returns measurement frequencies {"00": 512, "11": 488}
 ```
 
+## Example prompt
+
+Once the server is connected to an MCP client, you can ask the agent to prepare and
+submit a circuit in plain language. For example:
+
+> Prepare a 2-qubit Bell state circuit and submit it to the Q-Cloud simulator.
+> Check which targets are available first, then submit with 1000 shots.
+> When the job finishes, show me the measurement results.
+
+The agent will:
+
+1. Build the Bell state circuit (e.g. as QASM 2.0)
+2. Call `list_available_targets` to find a compatible project/partition
+3. Call `submit_circuit` and report the returned PID
+4. Poll `get_job_status` until the job reaches `SUCCESS`
+5. Call `get_job_result` and show the measurement frequencies
+
 ## License
 
 Apache 2.0
